@@ -1,0 +1,30 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /polls/{pollId} {
+      allow read: if auth();
+      allow delete: if isOwner(resource.data.authorId);
+      allow create: if isOwner(request.resource.data.authorId) &&
+        keys(['authorId', 'author', 'question', 'choices', 'createdAt']) &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.author == request.auth.name &&
+        request.resource.data.choices is list &&
+        request.resource.data.choices.size() >= 2 &&
+        request.resource.data.question is string;
+    }
+    match /users/{userId}/votes/{pollId} {
+      allow read: if isOwner(userId);
+    }
+
+    function keys(keys) {
+      return request.resource.data.keys().hasOnly(keys);
+    }
+    function auth() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+  }
+}
